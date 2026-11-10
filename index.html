@@ -1,9 +1,124 @@
 <!DOCTYPE html>
-<html lang="eu">
-    <head>
-        <title>OsaMaps</title>
-    </head>
-    <body>
-        
-    </body>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OsaMaps - Orientación Hospitalaria</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Barra de Idioma Superior -->
+  <header class="top-header">
+    <button id="lang-btn" class="btn-lang" aria-label="Cambiar Idioma">Euskara</button>
+  </header>
+
+  <!-- PANTALLA 1: EL ESCÁNER -->
+  <section id="screen-scanner" class="screen active">
+    <main class="scanner-container">
+      
+      <!-- Visor de Cámara Simulada -->
+      <div class="camera-viewport" id="camera-viewport">
+        <div class="scan-frame">
+          <div class="laser-line"></div>
+        </div>
+        <div class="scanner-status">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span id="txt-scan-prompt">Apunte al código de barras de su cita</span>
+        </div>
+      </div>
+
+      <!-- Selector Manual (Plan B) -->
+      <div class="plan-b-box">
+        <label for="manual-select" id="lbl-select">O elija su destino a mano:</label>
+        <select id="manual-select" class="big-select">
+          <option value="" disabled selected id="opt-default">-- Seleccione Consulta --</option>
+          <option value="CONS_CARDIOLOGIA">Consulta 14 - Cardiología (Planta 1)</option>
+          <option value="ANALITICAS">Analíticas y Extracciones (Planta Baja)</option>
+          <option value="RADIOLOGIA">Radiografía y Rayos X (Planta -1)</option>
+        </select>
+      </div>
+
+      <!-- Interruptor de Accesibilidad -->
+      <div class="accessibility-card">
+        <label class="switch-container" for="wheelchair-switch">
+          <span class="switch-label">
+            <span class="wheelchair-icon" aria-hidden="true">♿</span>
+            <span id="txt-avoid-stairs">Evitar escaleras (Usar ascensor)</span>
+          </span>
+          <input type="checkbox" id="wheelchair-switch">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- PANTALLA 2: NAVEGACIÓN -->
+  <section id="screen-navigation" class="screen">
+    
+    <!-- Barra Gruesa de Progreso -->
+    <div class="progress-bar-container">
+      <div id="progress-bar-fill" class="progress-bar-fill"></div>
+      <span id="progress-text" class="progress-text">Paso 1 de 3</span>
+    </div>
+
+    <!-- Visor Fotográfico AR (SVG Vectorial) -->
+    <div class="photo-viewport">
+      <svg id="ar-scene" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+        <!-- La escena visual se genera dinámicamente mediante JS -->
+      </svg>
+    </div>
+
+    <!-- Panel de Instrucción + Voz -->
+    <div class="instruction-box">
+      <p id="instruction-text" class="instruction-text">Cargando ruta...</p>
+      <button id="tts-btn" class="btn-tts" aria-label="Escuchar instrucción">
+        🔊
+      </button>
+    </div>
+
+    <!-- Botonera de Avance -->
+    <nav class="nav-controls">
+      <button id="btn-prev" class="btn-action btn-secondary">Atrás</button>
+      <button id="btn-next" class="btn-action btn-primary">Siguiente paso</button>
+    </nav>
+
+  </section>
+
+  <!-- PANTALLA 3: LLEGADA -->
+  <section id="screen-arrival" class="screen">
+    <main class="arrival-card">
+      
+      <!-- Visor Foto de Destino -->
+      <div class="arrival-viewport">
+        <svg viewBox="0 0 800 500" width="100%" height="100%">
+          <rect width="800" height="500" fill="#e2e8f0"/>
+          <path d="M 0,350 L 800,350" stroke="#cbd5e1" stroke-width="4"/>
+          <rect x="250" y="80" width="300" height="370" fill="#ffffff" stroke="#0f172a" stroke-width="6" rx="8"/>
+          <rect x="270" y="100" width="260" height="70" fill="#0284c7" rx="6"/>
+          <text x="400" y="145" fill="#ffffff" font-size="24" font-weight="bold" text-anchor="middle" id="arrival-door-text">CONSULTA 14</text>
+          <circle cx="280" cy="270" r="10" fill="#eab308"/>
+          <rect x="580" y="220" width="160" height="180" fill="#cbd5e1" rx="4"/>
+          <text x="660" y="320" fill="#475569" font-size="20" font-weight="bold" text-anchor="middle">SALA DE ESPERA</text>
+        </svg>
+      </div>
+
+      <!-- Icono de Éxito -->
+      <div class="success-badge">✓</div>
+
+      <!-- Mensaje Final -->
+      <h1 id="txt-arrival-title" class="arrival-title">Ha llegado a su destino</h1>
+      <p id="txt-arrival-sub" class="arrival-subtitle">Por favor, tome asiento y espere a ser llamado.</p>
+
+      <button id="btn-restart" class="btn-action btn-primary btn-full">Volver al Inicio</button>
+
+    </main>
+  </section>
+
+  <script src="app.js"></script>
+</body>
 </html>
