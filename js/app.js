@@ -1,357 +1,330 @@
-// BASE DE DATOS Y GRAFO DEL HOSPITAL
-const hospitalGraph = {
-  nodes: {
-    "ENTRADA": {
-      text: { es: "Siga recto pasando el mostrador rojo", eu: "Jarraitu zuzen harrera-txartel gorria igarota" },
-      landmark: "red_desk",
-      arrows: [{ type: "straight" }]
+// Motor Lógico de OsaMaps (Teoría de Grafos, Dijkstra, TTS y Accesibilidad)
+
+// 1. DICCIONARIOS BILINGÜES (Castellano / Euskera)
+const TRANSLATIONS = {
+    es: {
+        scanTitle: "Apunte al código de barras de su cita",
+        scanHint: "Toque aquí para simular lectura del pase",
+        planBLabel: "¿No funciona? Elija su consulta aquí:",
+        selectPlaceholder: "-- Seleccionar Destino --",
+        accLabel: "Evitar escaleras",
+        btnBack: "⬅️ Atrás",
+        btnNext: "Siguiente paso ➡️",
+        stepText: "Paso {current} de {total}",
+        listen: "🔊 Escuchar",
+        arrivalTitle: "¡Ha llegado a su destino!",
+        arrivalMsg: "Por favor, tome asiento en la sala de espera. Su médico le llamará por pantalla.",
+        btnRestart: "🏠 Volver al inicio",
+        nodes: {
+            node_entrance: "Entrada principal del hospital. Avance recto.",
+            node_hall: "Pasillo central. Pase las puertas de cristal dobles.",
+            node_desk: "Siga la línea azul del suelo pasando el mostrador rojo.",
+            node_stairs: "Suba por las escaleras hasta la primera planta.",
+            node_elevator: "Tome el ascensor dorado hasta la planta deseada.",
+            node_cardiology: "Llegada a Analíticas / Consulta 14 de Cardiología.",
+            node_radiology: "Llegada a Radiología y Rayos X.",
+            node_trauma: "Llegada a Consulta de Traumatología."
+        }
     },
-    "PASILLO_CENTRAL": {
-      text: { es: "Siga la línea azul del suelo", eu: "Jarraitu lurreko lerro urdina" },
-      landmark: "blue_line",
-      arrows: [{ type: "straight" }]
-    },
-    "CRUCE_ACCESIBLE": {
-      text: { es: "Gire a la derecha hacia los ascensores", eu: "Bira eskuinera igogailuetarantz" },
-      landmark: "elevator_hall",
-      arrows: [{ type: "right" }]
-    },
-    "CRUCE_ESCALERAS": {
-      text: { es: "Suba por las escaleras a la 1ª Planta", eu: "Igo eskaileretatik 1. solairura" },
-      landmark: "stairs",
-      arrows: [{ type: "up" }]
-    },
-    "PLANTA1_ASCENSOR": {
-      text: { es: "Salga del ascensor y gire a la izquierda", eu: "Irten igogailutik eta biratu ezkerrera" },
-      landmark: "p1_hall",
-      arrows: [{ type: "left" }]
-    },
-    "PLANTA1_ESCALERAS": {
-      text: { es: "Al terminar las escaleras, gire a la izquierda", eu: "Eskailerak amaitzean, biratu ezkerrera" },
-      landmark: "p1_hall",
-      arrows: [{ type: "left" }]
-    },
-    "CONS_CARDIOLOGIA": {
-      text: { es: "Ha llegado a Cardiología. Tome asiento", eu: "Kardiologiara iritsi zara. Eseri zaitez" },
-      landmark: "door_cardio",
-      arrows: []
-    },
-    "ANALITICAS": {
-      text: { es: "Gire a la izquierda hacia Extracciones", eu: "Biratu ezkerrera Odol-erauzketetarantz" },
-      landmark: "door_blood",
-      arrows: []
-    },
-    "RADIOLOGIA": {
-      text: { es: "Baje por el ascensor a la Planta -1", eu: "Jaitsi igogailuz -1 solairura" },
-      landmark: "elevator_hall",
-      arrows: []
+    eu: {
+        scanTitle: "Zuzendu zure txandaren barra-kodera",
+        scanHint: "Ukitu hemen txartelaren irakurketa simulatzeko",
+        planBLabel: "Ez dabil? Hazi zure kontsulta hemen:",
+        selectPlaceholder: "-- Hautatu Helburua --",
+        accLabel: "Escalera gabe (Irisgarria)",
+        btnBack: "⬅️ Atzera",
+        btnNext: "Hurrengo urratsa ➡️",
+        stepText: "Urratsa {current} / {total}",
+        listen: "🔊 Entzun",
+        arrivalTitle: "Zure helburura iritsi zara!",
+        arrivalMsg: "Mesedez, eseri itxaronaretoan. Zure medikuak pantaila bidez deituko zaitu.",
+        btnRestart: "🏠 Hasierara bueltatu",
+        nodes: {
+            node_entrance: "Ospitaleko sarrera nagusia. Jarraitu zuzen.",
+            node_hall: "Korrido nagusia. igaro beirazko ate bikoitzak.",
+            node_desk: "Jarraitu lurreko linea urdina mahai gorria igarotzean.",
+            node_stairs: "Igo eskailerak lehenengo solairuraino.",
+            node_elevator: "Hartzazu igogailu urreztatua nahi duzun solairuraino.",
+            node_cardiology: "Kardiologiako 14. Kontsultara iritsiera.",
+            node_radiology: "Erradiologia eta X izpietara iritsiera.",
+            node_trauma: "Traumatologia Kontsultara iritsiera."
+        }
     }
-  },
-  edges: [
-    { from: "ENTRADA", to: "PASILLO_CENTRAL", weight: 1, stairs: false },
-    { from: "PASILLO_CENTRAL", to: "CRUCE_ACCESIBLE", weight: 1, stairs: false },
-    { from: "PASILLO_CENTRAL", to: "CRUCE_ESCALERAS", weight: 1, stairs: true },
-    { from: "PASILLO_CENTRAL", to: "ANALITICAS", weight: 1, stairs: false },
-    { from: "CRUCE_ACCESIBLE", to: "PLANTA1_ASCENSOR", weight: 2, stairs: false },
-    { from: "CRUCE_ESCALERAS", to: "PLANTA1_ESCALERAS", weight: 1, stairs: true },
-    { from: "PLANTA1_ASCENSOR", to: "CONS_CARDIOLOGIA", weight: 1, stairs: false },
-    { from: "PLANTA1_ESCALERAS", to: "CONS_CARDIOLOGIA", weight: 1, stairs: true },
-    { from: "CRUCE_ACCESIBLE", to: "RADIOLOGIA", weight: 2, stairs: false }
-  ]
 };
 
-// ESTADO DE LA APLICACIÓN
 let currentLang = 'es';
-let avoidStairs = false;
-let currentPath = [];
+let avoidStairs = true;
+
+// 2. GRAFO DEL HOSPITAL (Nodos y Aristas con Pesos de Accesibilidad)
+const HOSPITAL_GRAPH = {
+    nodes: {
+        'node_entrance': { id: 'node_entrance', type: 'hall', landmark: 'entrance' },
+        'node_hall': { id: 'node_hall', type: 'hall', landmark: 'glass_doors' },
+        'node_desk': { id: 'node_desk', type: 'desk', landmark: 'red_desk' },
+        'node_stairs': { id: 'node_stairs', type: 'stairs', landmark: 'stairs' },
+        'node_elevator': { id: 'node_elevator', type: 'elevator', landmark: 'elevator' },
+        'node_cardiology': { id: 'node_cardiology', type: 'destination', landmark: 'cardiology_door' },
+        'node_radiology': { id: 'node_radiology', type: 'destination', landmark: 'radiology_door' },
+        'node_trauma': { id: 'node_trauma', type: 'destination', landmark: 'trauma_door' }
+    },
+    edges: [
+        { from: 'node_entrance', to: 'node_hall', weight: 1, stairs: false },
+        { from: 'node_hall', to: 'node_desk', weight: 1, stairs: false },
+        { from: 'node_desk', to: 'node_cardiology', weight: 1, stairs: false },
+        { from: 'node_desk', to: 'node_stairs', weight: 1, stairs: true },
+        { from: 'node_desk', to: 'node_elevator', weight: 2, stairs: false },
+        { from: 'node_stairs', to: 'node_trauma', weight: 1, stairs: true },
+        { from: 'node_elevator', to: 'node_radiology', weight: 1, stairs: false },
+        { from: 'node_elevator', to: 'node_trauma', weight: 3, stairs: false }
+    ]
+};
+
+// 3. ESTADO DE NAVEGACIÓN
+let activeRoute = [];
 let currentStepIndex = 0;
 
-// DICCIONARIO I18N
-const i18n = {
-  es: {
-    btnLang: "Euskara",
-    scanPrompt: "Apunte al código de barras de su cita",
-    selectLabel: "O elija su destino a mano:",
-    selectDefault: "-- Seleccione Consulta --",
-    avoidStairs: "Evitar escaleras (Usar ascensor)",
-    step: "Paso",
-    of: "de",
-    next: "Siguiente paso",
-    prev: "Atrás",
-    arrivalTitle: "Ha llegado a su destino",
-    arrivalSub: "Por favor, tome asiento y espere a ser llamado.",
-    restart: "Volver al Inicio"
-  },
-  eu: {
-    btnLang: "Castellano",
-    scanPrompt: "Zuzendu zure hitzorduaren barra-kodera",
-    selectLabel: "Edo aukeratu helmuga eskuz:",
-    selectDefault: "-- Hautatu Kontsulta --",
-    avoidStairs: "Eskailerak ekidin (Igogailua erabili)",
-    step: "Uratsa",
-    of: "nondik",
-    next: "Hurrengo urratsa",
-    prev: "Atzera",
-    arrivalTitle: "Zure helmugara iritsi zara",
-    arrivalSub: "Mesedez, eseri eta itxaron deitu arte.",
-    restart: "Hasierara reitzuli"
-  }
-};
+// 4. ALGORITMO DIJKSTRA DE ENRUTAMIENTO ACCESIBLE
+function calculateShortestPath(startNodeId, targetNodeId, filterStairs) {
+    const graph = HOSPITAL_GRAPH;
+    const distances = {};
+    const previous = {};
+    const nodesQueue = new Set();
 
-// ALGORITMO DIJKSTRA
-function findShortestPath(startNode, targetNode, filterStairs) {
-  const distances = {};
-  const previous = {};
-  const nodes = new Set();
-
-  Object.keys(hospitalGraph.nodes).forEach(node => {
-    distances[node] = Infinity;
-    previous[node] = null;
-    nodes.add(node);
-  });
-  distances[startNode] = 0;
-
-  while (nodes.size > 0) {
-    let smallest = null;
-    nodes.forEach(node => {
-      if (smallest === null || distances[node] < distances[smallest]) {
-        smallest = node;
-      }
+    Object.keys(graph.nodes).forEach(nodeId => {
+        distances[nodeId] = Infinity;
+        previous[nodeId] = null;
+        nodesQueue.add(nodeId);
     });
 
-    if (smallest === targetNode || distances[smallest] === Infinity) break;
-    nodes.delete(smallest);
+    distances[startNodeId] = 0;
 
-    const neighborEdges = hospitalGraph.edges.filter(e => e.from === smallest);
-    for (let edge of neighborEdges) {
-      if (filterStairs && edge.stairs) continue; // Penalización por accesibilidad
+    while (nodesQueue.size > 0) {
+        let smallestNode = null;
+        nodesQueue.forEach(nodeId => {
+            if (smallestNode === null || distances[nodeId] < distances[smallestNode]) {
+                smallestNode = nodeId;
+            }
+        });
 
-      let alt = distances[smallest] + edge.weight;
-      if (alt < distances[edge.to]) {
-        distances[edge.to] = alt;
-        previous[edge.to] = smallest;
-      }
+        if (smallestNode === targetNodeId || distances[smallestNode] === Infinity) {
+            break;
+        }
+
+        nodesQueue.delete(smallestNode);
+
+        // Buscar vecinos
+        const neighbors = graph.edges.filter(e => e.from === smallestNode || e.to === smallestNode);
+        neighbors.forEach(edge => {
+            if (filterStairs && edge.stairs) return; // Penalizar o omitir escaleras si accesibilidad está activa
+
+            const neighborId = edge.from === smallestNode ? edge.to : edge.from;
+            if (nodesQueue.has(neighborId)) {
+                const alt = distances[smallestNode] + edge.weight;
+                if (alt < distances[neighborId]) {
+                    distances[neighborId] = alt;
+                    previous[neighborId] = smallestNode;
+                }
+            }
+        });
     }
-  }
 
-  const path = [];
-  let curr = targetNode;
-  while (curr) {
-    path.unshift(curr);
-    curr = previous[curr];
-  }
-  return path[0] === startNode ? path : [];
-}
-
-// RENDERIZADO VISUAL SVG (LANDMARKS + AR)
-function renderARScene(nodeKey) {
-  const node = hospitalGraph.nodes[nodeKey];
-  const svg = document.getElementById('ar-scene');
-  if (!svg) return;
-
-  let content = `
-    <rect width="800" height="600" fill="#cbd5e1"/>
-    <polygon points="0,600 250,300 550,300 800,600" fill="#94a3b8"/>
-    <polygon points="250,300 550,300 500,0 300,0" fill="#64748b"/>
-    <path d="M 400,600 L 400,300" stroke="#ffffff" stroke-width="8" stroke-dasharray="20,15"/>
-  `;
-
-  if (node.landmark === 'red_desk') {
-    content += `
-      <rect x="520" y="320" width="180" height="120" fill="#dc2626" rx="8"/>
-      <rect x="540" y="280" width="140" height="40" fill="#fee2e2" rx="4"/>
-      <text x="610" y="305" fill="#991b1b" font-size="16" font-weight="bold" text-anchor="middle">HARRERA / RECEPCIÓN</text>
-    `;
-  } else if (node.landmark === 'blue_line') {
-    content += `<polygon points="380,600 395,300 405,300 420,600" fill="#0284c7"/>`;
-  } else if (node.landmark === 'elevator_hall') {
-    content += `
-      <rect x="500" y="220" width="160" height="240" fill="#475569" stroke="#eab308" stroke-width="6"/>
-      <rect x="520" y="250" width="55" height="190" fill="#94a3b8"/>
-      <rect x="585" y="250" width="55" height="190" fill="#94a3b8"/>
-      <circle cx="580" cy="235" r="8" fill="#22c55e"/>
-    `;
-  } else if (node.landmark === 'stairs') {
-    content += `
-      <polygon points="450,450 650,450 650,250 550,250" fill="#64748b"/>
-      <line x1="450" y1="450" x2="650" y2="450" stroke="#0f172a" stroke-width="4"/>
-      <line x1="480" y1="410" x2="650" y2="410" stroke="#0f172a" stroke-width="4"/>
-      <line x1="510" y1="370" x2="650" y2="370" stroke="#0f172a" stroke-width="4"/>
-      <line x1="540" y1="330" x2="650" y2="330" stroke="#0f172a" stroke-width="4"/>
-    `;
-  }
-
-  // Flecha Vectorial de Ultra-Alto Contraste
-  node.arrows.forEach(arrow => {
-    if (arrow.type === 'straight') {
-      content += `
-        <g transform="translate(400, 480)">
-          <path d="M 0,40 L 0,-60 M -30,-20 L 0,-70 L 30,-20" fill="none" stroke="#0f172a" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 0,40 L 0,-60 M -30,-20 L 0,-70 L 30,-20" fill="none" stroke="#facc15" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-      `;
-    } else if (arrow.type === 'right') {
-      content += `
-        <g transform="translate(420, 460)">
-          <path d="M -80,40 L 20,40 L 60,-20 M 20,-30 L 70,-25 L 55,25" fill="none" stroke="#0f172a" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M -80,40 L 20,40 L 60,-20 M 20,-30 L 70,-25 L 55,25" fill="none" stroke="#facc15" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-      `;
-    } else if (arrow.type === 'left') {
-      content += `
-        <g transform="translate(380, 460)">
-          <path d="M 80,40 L -20,40 L -60,-20 M -20,-30 L -70,-25 L -55,25" fill="none" stroke="#0f172a" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M 80,40 L -20,40 L -60,-20 M -20,-30 L -70,-25 L -55,25" fill="none" stroke="#facc15" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-      `;
+    const path = [];
+    let curr = targetNodeId;
+    while (curr !== null) {
+        path.unshift(curr);
+        curr = previous[curr];
     }
-  });
-
-  svg.innerHTML = content;
+    return path;
 }
 
-// CONTROL DE NAVEGACIÓN DE PANTALLAS
-function showScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(screenId).classList.add('active');
-}
-
-function startNavigation(destinationKey) {
-  avoidStairs = document.getElementById('wheelchair-switch').checked;
-  currentPath = findShortestPath("ENTRADA", destinationKey, avoidStairs);
-  currentStepIndex = 0;
-
-  if (currentPath.length > 0) {
-    showScreen('screen-navigation');
-    updateNavigationStep();
-  }
-}
-
-function updateNavigationStep() {
-  const totalSteps = currentPath.length;
-  const currentNodeKey = currentPath[currentStepIndex];
-  const nodeData = hospitalGraph.nodes[currentNodeKey];
-
-  // Barra de progreso
-  const progressPercent = ((currentStepIndex + 1) / totalSteps) * 100;
-  document.getElementById('progress-bar-fill').style.width = `${progressPercent}%`;
-  document.getElementById('progress-text').innerText = `${i18n[currentLang].step} ${currentStepIndex + 1} ${i18n[currentLang].of} ${totalSteps}`;
-
-  // Texto de instrucción
-  const instructionText = nodeData.text[currentLang];
-  document.getElementById('instruction-text').innerText = instructionText;
-
-  // Renderizado visual y voz
-  renderARScene(currentNodeKey);
-  speakText(instructionText);
-
-  // Botón atrás
-  document.getElementById('btn-prev').style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
-}
-
-// SÍNTESIS DE VOZ (TTS)
-function speakText(text) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = currentLang === 'es' ? 'es-ES' : 'eu-ES';
-    utterance.rate = 0.85; // Velocidad pausada para tercera edad
-    window.speechSynthesis.speak(utterance);
-  }
-}
-
-// SONIDO DE CONFIRMACIÓN (WEB AUDIO API)
-function playSuccessSound() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15); // E5
-    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.30); // G5
-    
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start();
-    osc.stop(ctx.currentTime + 0.6);
-  } catch (e) {
-    console.log("Audio no soportado o bloqueado");
-  }
-}
-
-// CAMBIO DE IDIOMA EN TIEMPO REAL
+// 5. CAMBIO DE IDIOMA
 function toggleLanguage() {
-  currentLang = currentLang === 'es' ? 'eu' : 'es';
-  const texts = i18n[currentLang];
-
-  document.getElementById('lang-btn').innerText = texts.btnLang;
-  document.getElementById('txt-scan-prompt').innerText = texts.scanPrompt;
-  document.getElementById('lbl-select').innerText = texts.selectLabel;
-  document.getElementById('opt-default').innerText = texts.selectDefault;
-  document.getElementById('txt-avoid-stairs').innerText = texts.avoidStairs;
-  document.getElementById('btn-next').innerText = texts.next;
-  document.getElementById('btn-prev').innerText = texts.prev;
-  document.getElementById('txt-arrival-title').innerText = texts.arrivalTitle;
-  document.getElementById('txt-arrival-sub').innerText = texts.arrivalSub;
-  document.getElementById('btn-restart').innerText = texts.restart;
-
-  if (document.getElementById('screen-navigation').classList.contains('active')) {
-    updateNavigationStep();
-  }
+    currentLang = currentLang === 'es' ? 'eu' : 'es';
+    document.getElementById('lang-toggle-btn').innerText = currentLang === 'es' ? '🌐 EU / ES' : '🌐 ES / EU';
+    updateStaticTexts();
+    if (activeRoute.length > 0 && currentStepIndex < activeRoute.length) {
+        renderCurrentStep();
+    }
 }
 
-// INICIALIZACIÓN DE EVENTOS
-document.addEventListener('DOMContentLoaded', () => {
-  // Cambio de idioma
-  document.getElementById('lang-btn').addEventListener('click', toggleLanguage);
+function updateStaticTexts() {
+    const t = TRANSLATIONS[currentLang];
+    document.getElementById('txt-scan-title').innerText = t.scanTitle;
+    document.getElementById('txt-scan-hint').innerText = t.scanHint;
+    document.getElementById('txt-plan-b').innerText = t.planBLabel;
+    document.getElementById('txt-select-placeholder').innerText = t.selectPlaceholder;
+    document.getElementById('txt-acc-label').innerText = t.accLabel;
+    document.getElementById('btn-back').innerText = t.btnBack;
+    document.getElementById('btn-next').innerText = t.btnNext;
+    document.getElementById('arrival-title').innerText = t.arrivalTitle;
+    document.getElementById('arrival-message').innerText = t.arrivalMsg;
+}
 
-  // Escáner simulado (al hacer clic en la cámara)
-  document.getElementById('camera-viewport').addEventListener('click', () => {
-    startNavigation("CONS_CARDIOLOGIA");
-  });
+// 6. CONTROL DE FLUIJO DE PANTALLAS
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+}
 
-  // Selector manual
-  document.getElementById('manual-select').addEventListener('change', (e) => {
-    if (e.target.value) {
-      startNavigation(e.target.value);
+function toggleAccessibility(checked) {
+    avoidStairs = checked;
+}
+
+function simulateBarcodeScan() {
+    // Escaneo predeterminado a Analíticas/Cardiología
+    startRouteTo('node_cardiology');
+}
+
+function onManualSelect(targetNodeId) {
+    if (targetNodeId) {
+        startRouteTo(targetNodeId);
     }
-  });
+}
 
-  // Botón TTS
-  document.getElementById('tts-btn').addEventListener('click', () => {
-    const text = document.getElementById('instruction-text').innerText;
-    speakText(text);
-  });
-
-  // Botón Siguiente
-  document.getElementById('btn-next').addEventListener('click', () => {
-    if (currentStepIndex < currentPath.length - 1) {
-      currentStepIndex++;
-      updateNavigationStep();
-    } else {
-      showScreen('screen-arrival');
-      playSuccessSound();
-      speakText(i18n[currentLang].arrivalTitle);
+function startRouteTo(targetNodeId) {
+    const startNode = 'node_entrance';
+    activeRoute = calculateShortestPath(startNode, targetNodeId, avoidStairs);
+    
+    if (activeRoute.length === 0 || activeRoute[activeRoute.length - 1] !== targetNodeId) {
+        alert(currentLang === 'es' ? 'Ruta no disponible con accesibilidad activa' : 'Bidea ez dago erabilgarri');
+        return;
     }
-  });
 
-  // Botón Atrás
-  document.getElementById('btn-prev').addEventListener('click', () => {
-    if (currentStepIndex > 0) {
-      currentStepIndex--;
-      updateNavigationStep();
+    currentStepIndex = 0;
+    showScreen('screen-navigation');
+    renderCurrentStep();
+}
+
+// 7. RENDERIZADO VISUAL PASO A PASO (SVG AR Estático)
+function renderCurrentStep() {
+    const nodeId = activeRoute[currentStepIndex];
+    const totalSteps = activeRoute.length;
+
+    // Actualizar Barra de Progreso
+    const percent = ((currentStepIndex + 1) / totalSteps) * 100;
+    document.getElementById('progress-fill').style.width = percent + '%';
+    
+    let stepStr = TRANSLATIONS[currentLang].stepText;
+    stepStr = stepStr.replace('{current}', currentStepIndex + 1).replace('{total}', totalSteps);
+    document.getElementById('progress-text').innerText = stepStr;
+
+    // Actualizar Texto de Instrucción Gigante
+    const instructionText = TRANSLATIONS[currentLang].nodes[nodeId];
+    document.getElementById('nav-text-instruction').innerText = instructionText;
+
+    // Actualizar Escena Gráfica Vectorial (Landmarks y Vectores)
+    renderSVGScene(nodeId);
+
+    // Reproducción de voz (Text-To-Speech)
+    speakInstruction(instructionText);
+}
+
+function renderSVGScene(nodeId) {
+    const landmarksGroup = document.getElementById('svg-landmarks');
+    const arrowPath = document.getElementById('vector-arrow');
+    const pointer = document.getElementById('vector-pointer');
+    landmarksGroup.innerHTML = '';
+
+    // Modificar visualización SVG según el hito arquitectónico
+    if (nodeId === 'node_entrance') {
+        arrowPath.setAttribute('d', 'M 400 460 L 400 280');
+        pointer.setAttribute('points', '400,230 360,290 440,290');
+    } else if (nodeId === 'node_hall') {
+        // Puertas de Cristal
+        landmarksGroup.innerHTML = `
+            <rect x="280" y="160" width="110" height="230" fill="#38BDF8" opacity="0.6" stroke="#0284C7" stroke-width="4"/>
+            <rect x="410" y="160" width="110" height="230" fill="#38BDF8" opacity="0.6" stroke="#0284C7" stroke-width="4"/>
+        `;
+        arrowPath.setAttribute('d', 'M 400 460 L 400 250');
+        pointer.setAttribute('points', '400,200 360,260 440,260');
+    } else if (nodeId === 'node_desk') {
+        // Mostrador Rojo
+        landmarksGroup.innerHTML = `
+            <rect x="500" y="260" width="180" height="100" fill="#DC2626" rx="10"/>
+            <text x="590" y="315" font-size="20" fill="#FFF" font-weight="bold" text-anchor="middle">RECEPCIÓN</text>
+        `;
+        // Giro a la izquierda
+        arrowPath.setAttribute('d', 'M 400 450 L 400 340 Q 400 300 340 300 L 260 300');
+        pointer.setAttribute('points', '210,300 270,260 270,340');
+    } else if (nodeId === 'node_elevator') {
+        // Ascensor Dorado
+        landmarksGroup.innerHTML = `
+            <rect x="330" y="140" width="140" height="240" fill="#D97706" rx="8"/>
+            <rect x="350" y="160" width="100" height="220" fill="#FBBF24"/>
+        `;
+        arrowPath.setAttribute('d', 'M 400 460 L 400 350');
+        pointer.setAttribute('points', '400,300 360,360 440,360');
     }
-  });
+}
 
-  // Botón Reiniciar
-  document.getElementById('btn-restart').addEventListener('click', () => {
-    document.getElementById('manual-select').selectedIndex = 0;
+// 8. SÍNTESIS DE VOZ (Web Speech API) Y SONIDO WEB AUDIO API
+function speakInstruction(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Cancelar anteriores
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = currentLang === 'es' ? 'es-ES' : 'eu-ES';
+        utterance.rate = 0.85; // Habla ligeramente más lenta para mayor claridad senior
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+function speakCurrentInstruction() {
+    const nodeId = activeRoute[currentStepIndex];
+    const text = TRANSLATIONS[currentLang].nodes[nodeId];
+    speakInstruction(text);
+}
+
+function playArrivalChime() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.3); // E5
+        
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+    } catch (e) {
+        console.log("Audio not supported or blocked");
+    }
+}
+
+// 9. NAVEGACIÓN ENTRE PASOS
+function navigateStep(direction) {
+    currentStepIndex += direction;
+
+    if (currentStepIndex < 0) {
+        currentStepIndex = 0;
+        return;
+    }
+
+    if (currentStepIndex >= activeRoute.length) {
+        // Llegada al destino
+        playArrivalChime();
+        showScreen('screen-arrival');
+        speakInstruction(TRANSLATIONS[currentLang].arrivalTitle);
+        return;
+    }
+
+    renderCurrentStep();
+}
+
+function resetApp() {
+    activeRoute = [];
+    currentStepIndex = 0;
+    document.getElementById('destination-select').value = "";
     showScreen('screen-scanner');
-  });
-});
+}
+
+// Inicialización al cargar la página
+window.onload = function() {
+    updateStaticTexts();
+};

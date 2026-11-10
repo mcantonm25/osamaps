@@ -1,124 +1,149 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OsaMaps - Orientación Hospitalaria</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OsaMaps - Guiado Hospitalario de Carga Cognitiva Cero</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-
-  <!-- Barra de Idioma Superior -->
-  <header class="top-header">
-    <button id="lang-btn" class="btn-lang" aria-label="Cambiar Idioma">Euskara</button>
-  </header>
-
-  <!-- PANTALLA 1: EL ESCÁNER -->
-  <section id="screen-scanner" class="screen active">
-    <main class="scanner-container">
-      
-      <!-- Visor de Cámara Simulada -->
-      <div class="camera-viewport" id="camera-viewport">
-        <div class="scan-frame">
-          <div class="laser-line"></div>
+    <!-- Encabezado Fijo con Selector de Idioma -->
+    <header class="app-header">
+        <div class="logo-area">
+            <span class="logo-symbol">🏥</span>
+            <span class="logo-text">OsaMaps</span>
         </div>
-        <div class="scanner-status">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          <span id="txt-scan-prompt">Apunte al código de barras de su cita</span>
-        </div>
-      </div>
+        <button id="lang-toggle-btn" class="lang-btn" onclick="toggleLanguage()" aria-label="Cambiar idioma / Hizkuntza aldatu">
+            🌐 EU / ES
+        </button>
+    </header>
 
-      <!-- Selector Manual (Plan B) -->
-      <div class="plan-b-box">
-        <label for="manual-select" id="lbl-select">O elija su destino a mano:</label>
-        <select id="manual-select" class="big-select">
-          <option value="" disabled selected id="opt-default">-- Seleccione Consulta --</option>
-          <option value="CONS_CARDIOLOGIA">Consulta 14 - Cardiología (Planta 1)</option>
-          <option value="ANALITICAS">Analíticas y Extracciones (Planta Baja)</option>
-          <option value="RADIOLOGIA">Radiografía y Rayos X (Planta -1)</option>
-        </select>
-      </div>
+    <main class="main-container">
+        <!-- PANTALLA 1: EL ESCÁNER (Inicio) -->
+        <section id="screen-scanner" class="screen active">
+            <div class="scanner-card">
+                <h1 class="instruction-main" id="txt-scan-title">Apunte al código de barras de su cita</h1>
+                
+                <div class="viewfinder" onclick="simulateBarcodeScan()" role="button" aria-label="Simular escaneo de código de barras">
+                    <div class="laser-line"></div>
+                    <div class="viewfinder-frame"></div>
+                    <p class="viewfinder-hint" id="txt-scan-hint">Toque aquí para simular lectura del pase</p>
+                </div>
 
-      <!-- Interruptor de Accesibilidad -->
-      <div class="accessibility-card">
-        <label class="switch-container" for="wheelchair-switch">
-          <span class="switch-label">
-            <span class="wheelchair-icon" aria-hidden="true">♿</span>
-            <span id="txt-avoid-stairs">Evitar escaleras (Usar ascensor)</span>
-          </span>
-          <input type="checkbox" id="wheelchair-switch">
-          <span class="slider"></span>
-        </label>
-      </div>
+                <div class="plan-b-section">
+                    <label for="destination-select" class="plan-b-label" id="txt-plan-b">¿No funciona? Elija su consulta aquí:</label>
+                    <select id="destination-select" class="giant-select" onchange="onManualSelect(this.value)">
+                        <option value="" disabled selected id="txt-select-placeholder">-- Seleccionar Destino --</option>
+                        <option value="node_cardiology">Analíticas / Cardiología (Planta Baja)</option>
+                        <option value="node_radiology">Radiología / Rayos X (Planta 1 - Ascensor)</option>
+                        <option value="node_trauma">Traumatología (Planta 2 - Escaleras)</option>
+                    </select>
+                </div>
 
+                <div class="accessibility-card">
+                    <div class="acc-info">
+                        <span class="acc-icon" aria-hidden="true">♿</span>
+                        <span class="acc-label" id="txt-acc-label">Evitar escaleras</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="no-stairs-toggle" checked onchange="toggleAccessibility(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- PANTALLA 2: NAVEGACIÓN (Carrusel Fotográfico con Flechas Vectoriales) -->
+        <section id="screen-navigation" class="screen">
+            <!-- Barra Gruesa de Progreso -->
+            <div class="progress-bar-container">
+                <div id="progress-fill" class="progress-fill" style="width: 20%;"></div>
+                <div id="progress-text" class="progress-text">Paso 1 de 4</div>
+            </div>
+
+            <!-- Visor de Realidad Aumentada Estática (Fotografía + Vectores SVG) -->
+            <div class="ar-viewport">
+                <!-- Fotografía de alta fidelidad del pasillo / nodo -->
+                <svg id="ar-svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="ar-canvas">
+                    <defs>
+                        <marker id="arrow-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#FFD700"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Fondo dinámico según el nodo -->
+                    <rect id="svg-bg" width="800" height="500" fill="#2C3E50" />
+                    
+                    <!-- Elementos arquitectónicos simplificados del hospital -->
+                    <g id="svg-environment">
+                        <!-- Paredes y perspectiva de pasillo -->
+                        <polygon points="0,0 250,150 250,400 0,500" fill="#E2E8F0"/>
+                        <polygon points="800,0 550,150 550,400 800,500" fill="#CBD5E1"/>
+                        <polygon points="250,150 550,150 550,400 250,400" fill="#F8FAFC"/>
+                        <polygon points="0,500 250,400 550,400 800,500" fill="#94A3B8"/>
+                        <!-- Línea de guiado en el suelo -->
+                        <polygon points="380,400 420,400 460,500 340,500" fill="#2563EB"/>
+                    </g>
+
+                    <!-- Landmarks gráficos (Mostrador, Puertas, Ascensor) -->
+                    <g id="svg-landmarks"></g>
+
+                    <!-- Overlay de flechas vectoriales hiper-visibles (Ultra alto contraste) -->
+                    <g id="svg-overlay-vectors">
+                        <path id="vector-arrow" d="M 400 460 L 400 280" stroke="#00FF66" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="drop-shadow(0px 4px 8px rgba(0,0,0,0.8))"/>
+                        <polygon id="vector-pointer" points="400,230 360,290 440,290" fill="#00FF66"/>
+                    </g>
+                </svg>
+
+                <button class="tts-repeat-btn" onclick="speakCurrentInstruction()" aria-label="Repetir instrucción en voz alta">
+                    🔊 Escuchar
+                </button>
+            </div>
+
+            <!-- Caja de Texto Gigante -->
+            <div class="instruction-card">
+                <p id="nav-text-instruction" class="giant-nav-text">Cargando instrucción...</p>
+            </div>
+
+            <!-- Botonera de Avance Gigante -->
+            <div class="nav-controls">
+                <button id="btn-back" class="btn-giant btn-back" onclick="navigateStep(-1)">
+                    ⬅️ Atrás
+                </button>
+                <button id="btn-next" class="btn-giant btn-next" onclick="navigateStep(1)">
+                    Siguiente paso ➡️
+                </button>
+            </div>
+        </section>
+
+        <!-- PANTALLA 3: LLEGADA (Confirmación) -->
+        <section id="screen-arrival" class="screen">
+            <div class="arrival-card">
+                <div class="arrival-badge">✓</div>
+                <h1 id="arrival-title" class="arrival-title">¡Ha llegado a su destino!</h1>
+                
+                <div class="arrival-photo-container">
+                    <svg viewBox="0 0 600 400" class="arrival-svg">
+                        <rect width="600" height="400" fill="#E2E8F0"/>
+                        <!-- Puerta de la Consulta -->
+                        <rect x="200" y="80" width="200" height="320" fill="#1E293B" rx="8"/>
+                        <circle cx="230" cy="240" r="10" fill="#FFD700"/>
+                        <!-- Cartel Consulta 14 -->
+                        <rect x="220" y="110" width="160" height="70" fill="#2563EB" rx="6"/>
+                        <text x="300" y="142" font-size="22" font-family="sans-serif" font-weight="bold" fill="#FFFFFF" text-anchor="middle">CONSULTA 14</text>
+                        <text x="300" y="166" font-size="16" font-family="sans-serif" fill="#E0F2FE" text-anchor="middle">Cardiología / Analíticas</text>
+                    </svg>
+                </div>
+
+                <p id="arrival-message" class="arrival-message">Por favor, tome asiento en la sala de espera. Su médico le llamará por pantalla.</p>
+
+                <button class="btn-giant btn-restart" onclick="resetApp()">
+                    🏠 Volver al inicio
+                </button>
+            </div>
+        </section>
     </main>
-  </section>
 
-  <!-- PANTALLA 2: NAVEGACIÓN -->
-  <section id="screen-navigation" class="screen">
-    
-    <!-- Barra Gruesa de Progreso -->
-    <div class="progress-bar-container">
-      <div id="progress-bar-fill" class="progress-bar-fill"></div>
-      <span id="progress-text" class="progress-text">Paso 1 de 3</span>
-    </div>
-
-    <!-- Visor Fotográfico AR (SVG Vectorial) -->
-    <div class="photo-viewport">
-      <svg id="ar-scene" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
-        <!-- La escena visual se genera dinámicamente mediante JS -->
-      </svg>
-    </div>
-
-    <!-- Panel de Instrucción + Voz -->
-    <div class="instruction-box">
-      <p id="instruction-text" class="instruction-text">Cargando ruta...</p>
-      <button id="tts-btn" class="btn-tts" aria-label="Escuchar instrucción">
-        🔊
-      </button>
-    </div>
-
-    <!-- Botonera de Avance -->
-    <nav class="nav-controls">
-      <button id="btn-prev" class="btn-action btn-secondary">Atrás</button>
-      <button id="btn-next" class="btn-action btn-primary">Siguiente paso</button>
-    </nav>
-
-  </section>
-
-  <!-- PANTALLA 3: LLEGADA -->
-  <section id="screen-arrival" class="screen">
-    <main class="arrival-card">
-      
-      <!-- Visor Foto de Destino -->
-      <div class="arrival-viewport">
-        <svg viewBox="0 0 800 500" width="100%" height="100%">
-          <rect width="800" height="500" fill="#e2e8f0"/>
-          <path d="M 0,350 L 800,350" stroke="#cbd5e1" stroke-width="4"/>
-          <rect x="250" y="80" width="300" height="370" fill="#ffffff" stroke="#0f172a" stroke-width="6" rx="8"/>
-          <rect x="270" y="100" width="260" height="70" fill="#0284c7" rx="6"/>
-          <text x="400" y="145" fill="#ffffff" font-size="24" font-weight="bold" text-anchor="middle" id="arrival-door-text">CONSULTA 14</text>
-          <circle cx="280" cy="270" r="10" fill="#eab308"/>
-          <rect x="580" y="220" width="160" height="180" fill="#cbd5e1" rx="4"/>
-          <text x="660" y="320" fill="#475569" font-size="20" font-weight="bold" text-anchor="middle">SALA DE ESPERA</text>
-        </svg>
-      </div>
-
-      <!-- Icono de Éxito -->
-      <div class="success-badge">✓</div>
-
-      <!-- Mensaje Final -->
-      <h1 id="txt-arrival-title" class="arrival-title">Ha llegado a su destino</h1>
-      <p id="txt-arrival-sub" class="arrival-subtitle">Por favor, tome asiento y espere a ser llamado.</p>
-
-      <button id="btn-restart" class="btn-action btn-primary btn-full">Volver al Inicio</button>
-
-    </main>
-  </section>
-
-  <script src="app.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
